@@ -1,0 +1,18 @@
+<div class="flex h-screen bg-base-200 overflow-hidden" *ngIf="dbReady; else loading">
+  <!-- Sidebar -->
+  <app-sidebar class="flex-shrink-0"></app-sidebar>
+
+  <!-- Main content -->
+  <main class="flex-1 overflow-y-auto">
+    <router-outlet></router-outlet>
+  </main>
+</div>
+
+<ng-template #loading>
+  <div class="flex items-center justify-center h-screen bg-base-200">
+    <div class="text-center">
+      <span class="loading loading-spinner loading-lg text-primary"></span>
+      <p class="mt-4 text-base-content/70">Initializing database...</p>
+    </div>
+  </div>
+</ng-template>

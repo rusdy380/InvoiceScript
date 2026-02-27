@@ -1,0 +1,406 @@
+<div class="p-4 max-w-7xl mx-auto">
+  <!-- Header -->
+  <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+    <div>
+      <h2 class="text-2xl font-bold">{{ isEdit ? 'Edit Invoice' : 'New Invoice' }}</h2>
+      <p class="text-base-content/60 text-sm mt-0.5">
+        {{ isEdit ? invoice.invoice_number : 'Create a new monthly invoice' }}
+      </p>
+    </div>
+    <div class="flex gap-2 flex-wrap">
+      <div class="tabs tabs-boxed bg-base-200">
+        <button class="tab" [class.tab-active]="activeTab === 'edit'" (click)="activeTab = 'edit'">Edit</button>
+        <button class="tab" [class.tab-active]="activeTab === 'preview'" (click)="activeTab = 'preview'">Preview</button>
+      </div>
+      <button class="btn btn-outline btn-sm" (click)="save()" [disabled]="saved">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+        </svg>
+        {{ saved ? 'Saved!' : 'Save' }}
+      </button>
+      <button class="btn btn-primary btn-sm" (click)="exportPdf()" [disabled]="pdfGenerating">
+        <svg *ngIf="!pdfGenerating" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <span *ngIf="pdfGenerating" class="loading loading-spinner loading-xs"></span>
+        Export PDF
+      </button>
+    </div>
+  </div>
+
+  <!-- Alerts -->
+  <div *ngIf="error" class="alert alert-error mb-4">
+    <span>{{ error }}</span>
+    <button class="btn btn-sm btn-ghost" (click)="error = ''">✕</button>
+  </div>
+  <div *ngIf="saved" class="alert alert-success mb-4">
+    <span>Invoice saved successfully!</span>
+  </div>
+
+  <!-- ───── EDIT TAB ────────────────────────────────────────────── -->
+  <div *ngIf="activeTab === 'edit'" class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- Left: Settings panel -->
+    <div class="lg:col-span-1 space-y-4">
+
+      <!-- Company & Period -->
+      <div class="card bg-base-100 shadow-sm border border-base-300">
+        <div class="card-body gap-3">
+          <h3 class="font-semibold text-sm uppercase tracking-wide text-base-content/60">Invoice Setup</h3>
+
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text font-medium">Company (From)</span></label>
+            <select class="select select-bordered select-sm" (change)="onCompanyChange($event)"
+              [value]="selectedCompany?.id ?? ''">
+              <option value="" disabled>Select company…</option>
+              <option *ngFor="let c of companies" [value]="c.id">{{ c.name }}</option>
+            </select>
+          </div>
+
+          <div *ngIf="selectedCompany" class="grid grid-cols-2 gap-2">
+            <div class="form-control">
+              <label class="label py-1"><span class="label-text font-medium">Month</span></label>
+              <select class="select select-bordered select-sm" [(ngModel)]="invoice.month" (ngModelChange)="onMonthYearChange()">
+                <option *ngFor="let m of months" [value]="m.value">{{ m.label }}</option>
+              </select>
+            </div>
+            <div class="form-control">
+              <label class="label py-1"><span class="label-text font-medium">Year</span></label>
+              <select class="select select-bordered select-sm" [(ngModel)]="invoice.year" (ngModelChange)="onMonthYearChange()">
+                <option *ngFor="let y of years" [value]="y.value">{{ y.label }}</option>
+              </select>
+            </div>
+          </div>
+
+          <div *ngIf="selectedCompany" class="form-control">
+            <label class="label py-1"><span class="label-text font-medium">Invoice Number</span></label>
+            <input type="text" [(ngModel)]="invoice.invoice_number" class="input input-bordered input-sm w-full font-mono" />
+          </div>
+
+          <div *ngIf="selectedCompany" class="grid grid-cols-2 gap-2">
+            <div class="form-control">
+              <label class="label py-1"><span class="label-text text-xs">Issue Date</span></label>
+              <input type="text" [(ngModel)]="invoice.issue_date" class="input input-bordered input-sm w-full text-xs" />
+            </div>
+            <div class="form-control">
+              <label class="label py-1"><span class="label-text text-xs">Due Date</span></label>
+              <input type="text" [(ngModel)]="invoice.due_date" class="input input-bordered input-sm w-full text-xs" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Template -->
+      <div class="card bg-base-100 shadow-sm border border-base-300" *ngIf="selectedCompany">
+        <div class="card-body gap-3">
+          <h3 class="font-semibold text-sm uppercase tracking-wide text-base-content/60">Template</h3>
+          <div class="flex gap-2">
+            <select class="select select-bordered select-sm flex-1" [(ngModel)]="selectedTemplateId">
+              <option [ngValue]="null">No template</option>
+              <option *ngFor="let t of templates" [value]="t.id">{{ t.name }}</option>
+            </select>
+            <button class="btn btn-sm btn-outline" (click)="loadTemplate()" [disabled]="!selectedTemplateId">Load</button>
+          </div>
+          <button class="btn btn-sm btn-ghost btn-block" (click)="saveAsTemplate()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Save Current as Template
+          </button>
+        </div>
+      </div>
+
+      <!-- Bill To -->
+      <div class="card bg-base-100 shadow-sm border border-base-300" *ngIf="selectedCompany">
+        <div class="card-body gap-3">
+          <h3 class="font-semibold text-sm uppercase tracking-wide text-base-content/60">Bill To</h3>
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text font-medium">Client Name</span></label>
+            <input type="text" [(ngModel)]="invoice.bill_to_name" class="input input-bordered input-sm w-full" placeholder="Client / Company Name" />
+          </div>
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text font-medium">Address</span></label>
+            <textarea [(ngModel)]="invoice.bill_to_address" rows="3" class="textarea textarea-bordered textarea-sm w-full text-sm" placeholder="Client address"></textarea>
+          </div>
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text font-medium">Email (optional)</span></label>
+            <input type="email" [(ngModel)]="invoice.bill_to_email" class="input input-bordered input-sm w-full" placeholder="client@example.com" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Tax & Notes -->
+      <div class="card bg-base-100 shadow-sm border border-base-300" *ngIf="selectedCompany">
+        <div class="card-body gap-3">
+          <h3 class="font-semibold text-sm uppercase tracking-wide text-base-content/60">Tax & Notes</h3>
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text font-medium">Tax Rate (%)</span></label>
+            <input type="number" [(ngModel)]="invoice.tax_rate" (ngModelChange)="recalculate()" min="0" max="100" step="0.1"
+              class="input input-bordered input-sm w-full" />
+          </div>
+          <div class="form-control">
+            <label class="label py-1"><span class="label-text font-medium">Notes</span></label>
+            <textarea [(ngModel)]="invoice.notes" rows="3" class="textarea textarea-bordered textarea-sm w-full text-sm" placeholder="Payment instructions, terms, etc."></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Line items + variables -->
+    <div class="lg:col-span-2 space-y-4" *ngIf="selectedCompany">
+
+      <!-- Monthly Variables -->
+      <div class="card bg-base-100 shadow-sm border border-base-300">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-2">
+            <div>
+              <h3 class="font-semibold text-sm uppercase tracking-wide text-base-content/60">Monthly Variables</h3>
+              <p class="text-xs text-base-content/40 mt-0.5">Use <code class="bg-base-200 px-1 rounded">&#123;KEY&#125;</code> in descriptions to substitute values</p>
+            </div>
+            <button class="btn btn-xs btn-outline" (click)="addVariable()">+ Add Variable</button>
+          </div>
+
+          <div *ngIf="invoice.monthly_variables.length === 0" class="text-center text-base-content/40 text-sm py-4">
+            No variables. Add variables like <code class="bg-base-200 px-1 rounded">MONTH_RANGE</code> to use in descriptions.
+          </div>
+
+          <div class="space-y-2" *ngIf="invoice.monthly_variables.length > 0">
+            <div *ngFor="let v of invoice.monthly_variables; let i = index"
+              class="grid grid-cols-12 gap-2 items-center bg-base-200 rounded-lg p-2">
+              <div class="col-span-3">
+                <label class="label py-0"><span class="label-text text-xs text-base-content/60">Key</span></label>
+                <input type="text" [(ngModel)]="v.key" class="input input-bordered input-xs w-full font-mono" placeholder="MY_VAR" />
+              </div>
+              <div class="col-span-4">
+                <label class="label py-0"><span class="label-text text-xs text-base-content/60">Label</span></label>
+                <input type="text" [(ngModel)]="v.label" class="input input-bordered input-xs w-full" placeholder="Description" />
+              </div>
+              <div class="col-span-4">
+                <label class="label py-0"><span class="label-text text-xs text-base-content/60">Value (this month)</span></label>
+                <input type="text" [(ngModel)]="v.value" class="input input-bordered input-xs w-full" placeholder="15 Jan - 15 Feb 2026" />
+              </div>
+              <div class="col-span-1 flex items-end pb-0.5">
+                <button class="btn btn-ghost btn-xs text-error" (click)="removeVariable(i)">✕</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Line Items -->
+      <div class="card bg-base-100 shadow-sm border border-base-300">
+        <div class="card-body">
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-semibold text-sm uppercase tracking-wide text-base-content/60">Line Items</h3>
+            <button class="btn btn-xs btn-primary" (click)="addLineItem()">+ Add Item</button>
+          </div>
+
+          <div *ngIf="invoice.line_items.length === 0" class="text-center text-base-content/40 text-sm py-8 border-2 border-dashed border-base-300 rounded-lg">
+            No line items. Click "+ Add Item" to start.
+          </div>
+
+          <div *ngIf="invoice.line_items.length > 0" class="space-y-3">
+            <div *ngFor="let item of invoice.line_items; let i = index"
+              class="border border-base-300 rounded-lg p-3 bg-base-50">
+              <div class="flex justify-between items-start mb-2">
+                <span class="badge badge-sm badge-outline">Item {{ i + 1 }}</span>
+                <button class="btn btn-ghost btn-xs text-error" (click)="removeLineItem(i)">Remove</button>
+              </div>
+              <div class="grid grid-cols-12 gap-2">
+                <div class="col-span-12">
+                  <label class="label py-0.5"><span class="label-text text-xs font-medium">Description</span></label>
+                  <textarea [(ngModel)]="item.description" rows="3" class="textarea textarea-bordered textarea-sm w-full text-sm"
+                    placeholder="Service description. Use {VAR_KEY} for monthly variables."></textarea>
+                </div>
+                <div class="col-span-4">
+                  <label class="label py-0.5"><span class="label-text text-xs font-medium">Duration</span></label>
+                  <input type="text" [(ngModel)]="item.duration" class="input input-bordered input-xs w-full" placeholder="1 Month" />
+                </div>
+                <div class="col-span-2">
+                  <label class="label py-0.5"><span class="label-text text-xs font-medium">Qty</span></label>
+                  <input type="number" [(ngModel)]="item.qty" (ngModelChange)="onLineChange(item)" min="0" class="input input-bordered input-xs w-full" />
+                </div>
+                <div class="col-span-3">
+                  <label class="label py-0.5"><span class="label-text text-xs font-medium">Unit Price</span></label>
+                  <input type="number" [(ngModel)]="item.unit_price" (ngModelChange)="onLineChange(item)" min="0" class="input input-bordered input-xs w-full" />
+                </div>
+                <div class="col-span-3">
+                  <label class="label py-0.5"><span class="label-text text-xs font-medium">Amount</span></label>
+                  <input type="number" [value]="item.qty * item.unit_price" readonly class="input input-bordered input-xs w-full bg-base-200 font-semibold" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Totals -->
+          <div *ngIf="invoice.line_items.length > 0" class="mt-4 pt-4 border-t border-base-300">
+            <div class="flex justify-end">
+              <div class="w-64 space-y-1 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-base-content/60">Subtotal</span>
+                  <span class="font-medium">{{ invoice.subtotal | number:'1.2-2' }}</span>
+                </div>
+                <div class="flex justify-between" *ngIf="invoice.tax_rate">
+                  <span class="text-base-content/60">Tax ({{ invoice.tax_rate }}%)</span>
+                  <span>{{ invoice.tax_amount | number:'1.2-2' }}</span>
+                </div>
+                <div class="flex justify-between text-base font-bold border-t border-base-300 pt-1">
+                  <span>Total</span>
+                  <span class="text-primary">{{ invoice.total | number:'1.2-2' }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ───── PREVIEW TAB ──────────────────────────────────────────── -->
+  <div *ngIf="activeTab === 'preview'" class="flex justify-center">
+    <div class="w-full max-w-4xl">
+      <div class="mb-4 flex justify-between items-center no-print">
+        <p class="text-sm text-base-content/60">Invoice preview — click "Export PDF" to download</p>
+        <button class="btn btn-primary btn-sm" (click)="exportPdf()" [disabled]="pdfGenerating">
+          <span *ngIf="pdfGenerating" class="loading loading-spinner loading-xs"></span>
+          Export PDF
+        </button>
+      </div>
+
+      <!-- Invoice Document -->
+      <div #invoicePreviewRef class="invoice-page shadow-2xl mx-auto" style="width:210mm; min-height:297mm; padding:18mm 20mm; background:white; font-family:Arial,sans-serif; font-size:10pt; color:#000;">
+
+        <!-- Header -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:24px;">
+          <tr>
+            <td style="width:50%; vertical-align:top;">
+              <div *ngIf="selectedCompany?.logo_base64">
+                <img [src]="selectedCompany!.logo_base64" style="max-height:60px; max-width:180px; object-fit:contain;" alt="logo">
+              </div>
+              <div *ngIf="!selectedCompany?.logo_base64" style="font-size:20pt; font-weight:bold; color:#1e3a5f;">
+                {{ selectedCompany?.name ?? 'Your Company' }}
+              </div>
+              <div style="margin-top:6px; font-size:8pt; color:#555; white-space:pre-line;">
+                {{ selectedCompany?.address }}
+              </div>
+              <div style="font-size:8pt; color:#555; margin-top:2px;">
+                {{ selectedCompany?.email }}
+              </div>
+              <div style="font-size:8pt; color:#555;" *ngIf="selectedCompany?.registration_number">
+                Reg: {{ selectedCompany!.registration_number }}
+              </div>
+            </td>
+            <td style="width:50%; vertical-align:top; text-align:right;">
+              <div style="font-size:22pt; font-weight:bold; color:#1e3a5f; letter-spacing:1px;">INVOICE</div>
+              <table style="margin-left:auto; margin-top:8px; font-size:9pt;">
+                <tr>
+                  <td style="color:#666; padding-right:12px; text-align:right;">Invoice No.</td>
+                  <td style="font-weight:bold;">{{ invoice.invoice_number }}</td>
+                </tr>
+                <tr>
+                  <td style="color:#666; text-align:right;">Date of Issue</td>
+                  <td>{{ invoice.issue_date }}</td>
+                </tr>
+                <tr>
+                  <td style="color:#666; text-align:right;">Date Due</td>
+                  <td style="font-weight:bold; color:#c0392b;">{{ invoice.due_date }}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Divider -->
+        <div style="height:3px; background:linear-gradient(to right, #1e3a5f, #4a90d9); border-radius:2px; margin-bottom:20px;"></div>
+
+        <!-- Bill To -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:24px;">
+          <tr>
+            <td style="width:50%; vertical-align:top;">
+              <div style="font-size:8pt; font-weight:bold; text-transform:uppercase; color:#666; letter-spacing:1px; margin-bottom:4px;">Bill To</div>
+              <div style="font-weight:bold; font-size:10pt;">{{ invoice.bill_to_name }}</div>
+              <div style="white-space:pre-line; font-size:9pt; color:#444; margin-top:2px;">{{ invoice.bill_to_address }}</div>
+              <div style="font-size:9pt; color:#444;" *ngIf="invoice.bill_to_email">{{ invoice.bill_to_email }}</div>
+            </td>
+            <td style="width:50%; vertical-align:top; text-align:right;">
+              <div style="font-size:8pt; font-weight:bold; text-transform:uppercase; color:#666; letter-spacing:1px; margin-bottom:4px;">Period</div>
+              <div style="font-size:10pt;">{{ monthLabel }} {{ invoice.year }}</div>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Line Items Table -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:9pt;">
+          <thead>
+            <tr style="background:#1e3a5f; color:white;">
+              <th style="padding:8px 10px; text-align:left; font-weight:600;">Description</th>
+              <th style="padding:8px 10px; text-align:center; width:80px;">Duration</th>
+              <th style="padding:8px 10px; text-align:center; width:40px;">Qty</th>
+              <th style="padding:8px 10px; text-align:right; width:90px;">Unit Price</th>
+              <th style="padding:8px 10px; text-align:right; width:90px;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let item of invoice.line_items; let i = index"
+              [style.background]="i % 2 === 0 ? '#f8fafc' : '#ffffff'">
+              <td style="padding:10px; vertical-align:top; white-space:pre-line; line-height:1.5;">
+                {{ resolveVars(item.description) }}
+              </td>
+              <td style="padding:10px; text-align:center; vertical-align:top; color:#555;">{{ item.duration }}</td>
+              <td style="padding:10px; text-align:center; vertical-align:top;">{{ item.qty }}</td>
+              <td style="padding:10px; text-align:right; vertical-align:top;">{{ item.unit_price | number:'1.2-2' }}</td>
+              <td style="padding:10px; text-align:right; vertical-align:top; font-weight:600;">{{ (item.qty * item.unit_price) | number:'1.2-2' }}</td>
+            </tr>
+            <!-- Empty state -->
+            <tr *ngIf="invoice.line_items.length === 0">
+              <td colspan="5" style="padding:20px; text-align:center; color:#999; font-style:italic;">No items added</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Totals -->
+        <table style="width:100%; border-collapse:collapse; margin-bottom:20px;">
+          <tr>
+            <td style="width:60%;"></td>
+            <td style="width:40%;">
+              <table style="width:100%; font-size:9pt;">
+                <tr>
+                  <td style="padding:4px 10px; color:#666;">Subtotal</td>
+                  <td style="padding:4px 10px; text-align:right;">{{ invoice.subtotal | number:'1.2-2' }}</td>
+                </tr>
+                <tr *ngIf="invoice.tax_rate && invoice.tax_rate > 0">
+                  <td style="padding:4px 10px; color:#666;">Tax ({{ invoice.tax_rate }}%)</td>
+                  <td style="padding:4px 10px; text-align:right;">{{ invoice.tax_amount | number:'1.2-2' }}</td>
+                </tr>
+                <tr style="border-top:2px solid #1e3a5f;">
+                  <td style="padding:8px 10px; font-weight:bold; font-size:11pt;">Total Due</td>
+                  <td style="padding:8px 10px; text-align:right; font-weight:bold; font-size:11pt; color:#1e3a5f;">
+                    SGD {{ invoice.total | number:'1.2-2' }}
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>
+
+        <!-- Bank Details -->
+        <div *ngIf="selectedCompany?.bank_name" style="background:#f0f4f8; border-radius:6px; padding:12px 16px; margin-bottom:16px; font-size:8.5pt;">
+          <div style="font-weight:bold; margin-bottom:4px; color:#1e3a5f;">Payment Details</div>
+          <div><strong>Bank:</strong> {{ selectedCompany!.bank_name }}</div>
+          <div><strong>Account No:</strong> {{ selectedCompany!.bank_account }}</div>
+          <div *ngIf="selectedCompany!.bank_swift"><strong>SWIFT:</strong> {{ selectedCompany!.bank_swift }}</div>
+        </div>
+
+        <!-- Notes -->
+        <div *ngIf="invoice.notes" style="font-size:8.5pt; color:#555; border-top:1px solid #ddd; padding-top:12px; white-space:pre-line;">
+          <strong>Notes:</strong> {{ invoice.notes }}
+        </div>
+
+        <!-- Footer -->
+        <div style="margin-top:auto; padding-top:20px; text-align:center; font-size:7.5pt; color:#aaa; border-top:1px solid #eee;">
+          Thank you for your business. Payment is due {{ invoice.due_date }}.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

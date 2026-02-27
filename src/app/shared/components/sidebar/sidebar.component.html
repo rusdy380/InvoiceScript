@@ -1,0 +1,64 @@
+<aside class="w-64 bg-base-100 shadow-lg flex flex-col h-full border-r border-base-300">
+  <!-- Logo / Brand -->
+  <div class="p-4 border-b border-base-300 flex items-center gap-3">
+    <div class="avatar placeholder">
+      <div class="bg-primary text-primary-content rounded-full w-10">
+        <span class="text-lg font-bold">IS</span>
+      </div>
+    </div>
+    <div>
+      <h1 class="font-bold text-lg leading-tight">InvoiceScript</h1>
+      <p class="text-xs text-base-content/60">Invoice Manager</p>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <nav class="flex-1 p-3 overflow-y-auto">
+    <ul class="menu menu-md gap-1">
+      <li class="menu-title text-xs uppercase tracking-wider mt-2">Main</li>
+
+      <li>
+        <a routerLink="/dashboard" routerLinkActive="active"
+           class="flex items-center gap-3 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+          </svg>
+          Dashboard
+        </a>
+      </li>
+
+      <li class="menu-title text-xs uppercase tracking-wider mt-4">Settings</li>
+
+      <li>
+        <a routerLink="/companies" routerLinkActive="active"
+           class="flex items-center gap-3 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+          Companies
+        </a>
+      </li>
+
+      <li class="menu-title text-xs uppercase tracking-wider mt-4">Invoices</li>
+
+      <li>
+        <a routerLink="/invoices" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}"
+           class="flex items-center gap-3 rounded-lg">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M12 4v16m8-8H4" />
+          </svg>
+          New Invoice
+        </a>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Footer -->
+  <div class="p-4 border-t border-base-300 text-xs text-base-content/50">
+    <p>InvoiceScript v1.0</p>
+    <p>SQLite &bull; Angular &bull; DaisyUI</p>
+  </div>
+</aside>
