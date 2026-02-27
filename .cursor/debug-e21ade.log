@@ -1,0 +1,5 @@
+{"sessionId":"e21ade","location":"app.ts:20","message":"ngOnInit calling db.init","data":{},"timestamp":1772201855358,"hypothesisId":"E"}
+{"sessionId":"e21ade","location":"database.service.ts:42","message":"ready=true set","data":{},"timestamp":1772201855388,"hypothesisId":"D"}
+{"sessionId":"e21ade","location":"app.ts:24","message":"db.init completed, dbReady=true","data":{},"timestamp":1772201855401,"hypothesisId":"E"}
+{"sessionId":"e21ade","location":"app.ts:20","message":"ngOnInit calling db.init","data":{},"timestamp":1772201856336,"hypothesisId":"E"}
+{"sessionId":"e21ade","location":"app.ts:24","message":"db.init completed, dbReady=true","data":{},"timestamp":1772201856389,"hypothesisId":"E"}

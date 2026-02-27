@@ -17,7 +17,7 @@ export class DatabaseService {
     this.initPromise = (async () => {
       const initSqlJs = (window as any).initSqlJs;
       this.SQL = await initSqlJs({
-        locateFile: (file: string) => `/assets/sql-wasm.wasm`,
+        locateFile: (file: string) => `/sql-wasm.wasm`,
       });
 
       const saved = localStorage.getItem('invoiceapp_db');
