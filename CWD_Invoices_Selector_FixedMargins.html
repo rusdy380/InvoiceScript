@@ -1,0 +1,985 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <title>CWD Invoices — Selector (Fixed Print Margins)</title>
+  <style>
+    :root {
+      --text: #111;
+      --muted: #555;
+      --gray: #e0e0e0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      color: var(--text);
+      font: 14px/1.35 Helvetica, Arial, sans-serif;
+    }
+
+    /* Printer margins handled ONLY by @page */
+    @page {
+      size: A4;
+      margin: 22mm 18mm;
+
+      /* Remove browser-generated headers and footers */
+      @top-left {
+        content: none;
+      }
+
+      @top-center {
+        content: none;
+      }
+
+      @top-right {
+        content: none;
+      }
+
+      @bottom-left {
+        content: none;
+      }
+
+      @bottom-center {
+        content: none;
+      }
+
+      @bottom-right {
+        content: none;
+      }
+    }
+
+    /* Page container */
+    .page {
+      width: 210mm;
+      margin: 0 auto;
+      background: #fff;
+    }
+
+    /* Comfortable padding for on-screen preview */
+    @media screen {
+      .page {
+        padding: 22mm 18mm;
+      }
+    }
+
+    /* Core layout */
+    .header {
+      display: grid;
+      grid-template-columns: 80mm 1fr;
+      column-gap: 12mm;
+      align-items: start;
+    }
+
+    .brand {
+      display: grid;
+      grid-template-columns: 20mm 1fr;
+      column-gap: 6mm;
+      align-items: center;
+    }
+
+    .brand img {
+      width: 20mm;
+      height: 20mm;
+      object-fit: contain;
+    }
+
+    h1 {
+      font-size: 20px;
+      margin: 0 0 4px;
+    }
+
+    .meta {
+      color: var(--muted);
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      column-gap: 18mm;
+      margin-top: 10mm;
+    }
+
+    .section-title {
+      font-weight: bold;
+      margin-bottom: 2mm;
+    }
+
+    .address p {
+      margin: 0;
+    }
+
+    .due-line {
+      font-weight: bold;
+      margin: 10mm 0 3mm;
+      font-size: 16px;
+    }
+
+    table.items {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 6mm;
+      table-layout: fixed;
+    }
+
+    table.items th {
+      background: #d9d9d9;
+      text-align: left;
+      padding: 6px 8px;
+      border: 1px solid var(--gray);
+    }
+
+    table.items td {
+      padding: 6px 8px;
+      border: 1px solid var(--gray);
+    }
+
+    table.items th.num,
+    table.items td.num {
+      text-align: right;
+      width: 30mm;
+    }
+
+    .totals {
+      width: 60%;
+      margin-left: auto;
+      margin-top: 8mm;
+    }
+
+    .totals tr td {
+      padding: 4px 0;
+    }
+
+    .totals tr td:last-child {
+      text-align: right;
+    }
+
+    .totals .bold td:last-child,
+    .totals .bold td:first-child {
+      font-weight: bold;
+    }
+
+    /* Visibility & toolbar */
+    .invoice {
+      display: none;
+    }
+
+    .invoice.active {
+      display: block;
+    }
+
+    .salary-slip {
+      display: none;
+      font-family: 'Courier New', Courier, monospace;
+    }
+
+    .salary-slip.active {
+      display: block;
+    }
+
+    /* Salary Slip Specifics */
+    .salary-slip .dashed-line {
+      border-top: 1px dashed #000;
+      margin: 15px 0;
+    }
+
+    .salary-slip .salary-title {
+      text-align: center;
+      font-weight: bold;
+      margin: 10px 0;
+      font-size: 1.1em;
+    }
+
+    .salary-slip .salary-info {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+
+    .salary-slip .salary-note {
+      text-align: center;
+      margin: 20px 0;
+      font-weight: bold;
+      text-transform: uppercase;
+      font-size: 0.9em;
+      padding: 0 40px;
+      line-height: 1.4;
+    }
+
+    .salary-slip .salary-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      table-layout: fixed;
+    }
+
+    .salary-slip .salary-table th {
+      text-align: left;
+      padding: 5px 0;
+      border-bottom: 1px dashed #000;
+    }
+
+    .salary-slip .salary-table td {
+      padding: 8px 0;
+      vertical-align: top;
+    }
+
+    .salary-slip .date-line {
+      text-align: center;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .salary-slip .totals-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+
+    .salary-slip .label {
+      display: inline-block;
+      width: 100px;
+    }
+
+    .toolbar {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      padding: 10px 18mm;
+      border-bottom: 1px solid var(--gray);
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      z-index: 100;
+    }
+
+    .toolbar .spacer {
+      flex: 1;
+      min-width: 20px;
+    }
+
+    .toolbar select {
+      padding: 4px;
+    }
+
+    .toolbar button {
+      cursor: pointer;
+      padding: 4px 8px;
+    }
+
+    /* PRINT FIXES */
+    @media print {
+      .toolbar {
+        display: none !important;
+      }
+
+      /* Let @page control margins; prevent extra width that collapses margins */
+      .page {
+        width: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* Show only active invoice and break to a single page cleanly */
+      .invoice.active,
+      .salary-slip.active {
+        display: block;
+        page-break-after: always;
+      }
+
+      .invoice:not(.active),
+      .salary-slip:not(.active) {
+        display: none !important;
+      }
+
+      .invoice:last-of-type,
+      .salary-slip:last-of-type {
+        page-break-after: auto;
+      }
+    }
+
+    /* Custom Mode Styles */
+    .custom-mode {
+      display: none;
+    }
+
+    .custom-mode.active {
+      display: block;
+    }
+
+    .custom-mode .no-print {
+      margin-top: 10px;
+    }
+
+    .custom-mode textarea {
+      font-family: inherit;
+      padding: 5px;
+      resize: vertical;
+    }
+
+    .custom-mode input.editable-field,
+    .custom-mode textarea.editable-field {
+      border: 1px solid #ccc;
+      padding: 4px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .custom-mode .del-btn {
+      color: red;
+      cursor: pointer;
+      font-weight: bold;
+      border: none;
+      background: none;
+    }
+
+    @media print {
+      .custom-mode .no-print {
+        display: none !important;
+      }
+
+      .custom-mode input.editable-field,
+      .custom-mode textarea {
+        border: none !important;
+        background: transparent;
+        resize: none;
+        padding: 0;
+        outline: none !important;
+      }
+
+      /* Expand textarea for print - show all content without scrollbars */
+      .custom-mode textarea {
+        min-height: fit-content;
+        overflow: visible !important;
+        white-space: pre-wrap;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="toolbar">
+    <label><b>Mode:</b></label>
+    <select id="modeSel">
+      <option value="invoice">Client Invoice</option>
+      <option value="salary">Salary Slip</option>
+      <option value="custom">Custom Mode (Manual)</option>
+    </select>
+
+    <div style="width:20px;"></div>
+
+    <label for="monthSel"><b>Month:</b></label>
+    <select id="monthSel">
+      <option value="jan2026">January 2026</option>
+      <option value="feb2026">February 2026</option>
+      <option value="mar2026">March 2026</option>
+      <option value="apr2026">April 2026</option>
+      <option value="may2026">May 2026</option>
+      <option value="jun2026">June 2026</option>
+      <option value="jul2026">July 2026</option>
+      <option value="aug2026">August 2026</option>
+      <option value="sep2026">September 2026</option>
+      <option value="oct2026">October 2026</option>
+      <option value="nov2026">November 2026</option>
+      <option value="dec2026">December 2026</option>
+    </select>
+
+    <div class="spacer"></div>
+
+    <!-- Batch Controls (Salary Only) -->
+    <div id="batchControls"
+      style="display:none; align-items:center; gap:5px; border-left:1px solid #ccc; padding-left:10px;">
+      <input type="checkbox" id="batchCheck"> <label for="batchCheck">Batch</label>
+      <span id="toSpan" style="display:none;">
+        to
+        <select id="monthSelTo"></select>
+      </span>
+    </div>
+
+    <button id="printBtn">Print / Save PDF</button>
+  </div>
+
+  <div class="page">
+    <div id="batchContainer"></div>
+    <!-- Single invoice template for preview; you can plug in any month dynamically -->
+    <section class="invoice active" id="april" data-issue="2025-04-01">
+      <div class="header">
+        <div class="brand">
+          <img
+            src="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gJESUNDX1BST0ZJTEUAAQEAAAI0AAAAAAAAAABtbnRyUkdCIFhZWiAH3gAGAAQAEQArADhhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAApkZXNjAAAA/AAAAHlia3B0AAABeAAAABR3dHB0AAABjAAAABRjcHJ0AAABoAAAABVyWFlaAAABuAAAABRnWFlaAAABzAAAABRiWFlaAAAB4AAAABRyVFJDAAAB9AAAAEBnVFJDAAAB9AAAAEBiVFJDAAAB9AAAAEBkZXNjAAAAAAAAAB9zUkdCIElFQzYxOTY2LTItMSBibGFjayBzY2FsZWQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWFlaIAAAAAAAAAMWAAADMwAAAqRYWVogAAAAAAAA9tYAAQAAAADTLXRleHQAAAAARHJvcGJveCwgSW5jLgAAAFhZWiAAAAAAAABvogAAOPUAAAOQWFlaIAAAAAAAAGKZAAC3hQAAGNpYWVogAAAAAAAAJKAAAA+EAAC2z2N1cnYAAAAAAAAAGgAAAMUBzANiBZMIawv2EEAVURs0IfEpkDIYO5JGBVF2Xe1rcHoFibKafKxpv37Twek3////2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAGhAaEDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD6fooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKQ8cnA+tAXsLRWNqPifRtPJFxfw7xxsQ72H4DpXN33xJso8iys55z6uwQH+ddFPC1qnwxOKtmWGofHNfmd7RXk138R9UkJ+z29rCvuC5H64/Ssi48Za9PndqDqPREVf5CuuGVVnvZHmVOI8LH4bv5HuFFfP8ut6rKcyaleH/ALbt/jWt4Gu7mXxXp6SXEzqXOQzkj7pq55VKEHJy2MqXEdOrVjTjB6tLfue1UUUV5J9KFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUVg6/wCKtM0Xck8pkuO0MXLfj2H41UKcqjtBXZlWrU6MeapKyN6snWPEWl6QCLy6QSj/AJZL8z/kP615frvjjVNSLR27/Y7c/wAMR+Y/Vv8ADFcsxLEsxJJ5JNevQymT1qs+axnEkY+7h1fzZ6Dq3xJmfKaVaLEP+ek3zMf+Ajgfma47U9c1LUyft17LKp/gzhf++RxWdRXq0sJRpfDE+bxOY4nEv95N27dAooorpOIKKKKACt/wF/yN2nf77f8AoJrArf8AAX/I3ad/vt/6CaxxH8KXodWB/wB5p+q/M9xooor44/UQooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKparqlnpVsZ7+dIk7Z6sfQDvWB4s8ZWuihre123F/j7mflj/wB4/wBP5V5NqmpXeqXTXF9M0sh9eij0A7V6WEy6db3p6I8HMs8p4W9OlrL8EdT4k8eXmoF4NM3WdseN2f3jfj2/D864skkkk5Joor36NCFFWgrHxWJxdXFS5qsrhRRRWxzhRRRQAUUUAEkADJNAJX2Citiw8M6zfYNvp8+3+842D82xW/Z/DjU5MG6uLaAexLn/AA/WueeLow+KSO2ll2KrfBBnEVv+Av8AkbtO/wB9v/QTXZW3w0tFH+k6hPIf+maKn881taP4M0rSryK6gWZp48lWd89sdq4a+ZUZQcY9Uetg8ixcKsKk0kk09zpaKKK+ePuAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiimu6ohd2CooySTgAUbibSV2KSACSePevN/GnjnJksdEk4+69yvf2T/H8vWs/xx4ybUTJY6Y7JZA4kkHBl/8Asf51xFe7gcu/5eVfuPkM3zxyvQwz06v/ACFYlmJY5J6mkoor2j5QKKKKACiiup8P+CdT1XbLMv2O2P8AHKPmI9l/xxWdWtCkrzdjehhauIly0o3Zy1b2j+EtX1Xa8NsYoT/y1m+Rf8T+Ar1LQ/CWlaQFaKATXC/8tpvmbPt2H4V0FePXzbpSX3n02E4a+1iJfJf5nB6V8OLKHDalcSXL90j+Rf8AH+Vdbp2j6fpoAsrOGEjjcq/N/wB9dav1Wv7+00+Ey311Dbx/3pZAo/WvMqYirWfvO59DQwOGwq9yKXmWaK4PVvin4cscrbyz3zjtBHx+bY/TNclqPxlumJGnaTDH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7re5DRfmfT4DLY0PfnrL8gooorzT1QooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACuF8afDjTdfMlzZ7bHUTz5iL8kh/2l/qP1ruqK0pVZ0nzQdjKtRhWjyzV0fK/iTwxq3h2cx6nasiE4SZPmjf6N/Q81i19e3NvDdQPDcxRzQuMNHIoZWHuDXm/if4S6del5tEmNjOefKb54j/AFX9fpXs4fNIy0q6HgYnJ5x96i7rseFUV0XiDwZruglmvrF2gX/lvD88f5jp+OK52vVhOM1eLuePOnOm7TVmFFFFWQFb3gP/AJHTRP8Ar7j/APQqwa3vAf8AyOmif9fcf/oVY1/4cvQ2w/8AFj6o+pKKKK+QPuUeMftA/wDH5ov/AFzl/mteSV63+0D/AMfmi/8AXOX+a15JX1GX/wACJ8fmX+8yCiiiu04Aooq/pOj6jrE/laZZz3L9/LXIX6noPxqZSUVdsqMXJ2iihViwsrrULpLaxt5bid/uxxruNeo+G/hBcSlJvEN0IE6+Rbnc34t0H4Zr1XQtB0zQrbydKs4rdT95gMs3+8x5NedXzOnT0hqz1MNlNWprU0X4nmfg34TBSl14ncHuLOJv/Q2H8h+detWttDaW0cFrEkMMY2pGi7VUewqaivErYidd3mz6HD4Wnh1aCCiiisDoCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAK5rW/A/h7WSz3WnRJM3/LWD922fXjr+Oa6WirhOUHeLsROlCorSVzyHVfg1GctpOquvpHcx7v/Hlx/wCg1yOo/DDxPZk+XaRXaj+K3lU/o2D+lfRlFdlPMq8N3c8+plOHnsreh8pXnh3WbIn7VpV9EB3aBsfnjFW/AqsnjXRVdSpF3HwR/tV9RU1kVmUsqkryCR0reWauUXGUTnjk0YzUoy28h1FFFeSe2eMftA/8fmi/9c5f5rXmFrpWoXmBaWF3Pnp5ULP/ACFfWjIrMrMqlh0OORS16dHMnRpqCjseRiMqVeq6jlv5HzTp/wAPvE96QU0qWJT/ABTssePwJz+ldVpfwcv5CG1TUreBf7sCmQ/rj+te20VM80rS20Kp5PQjvdnD6N8MPDmnFXmgkvpRzuuXyv8A3yMD8812dtbw2sKw20UcMS8KkahVH4CpaK4qlWdT4nc9ClQp0laEbBRRRWZqFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQAUUUUAFFFFABRRRQB//9k="
+            alt="CWD logo">
+          <div class="company">
+            <div class="bold">CWD Pte Ltd</div>
+            <div>22 Sin Ming Lane #06-76</div>
+            <div>Midview City</div>
+            <div>Singapore (573969)</div>
+            <div><a href="mailto:sales@cwdigitalsg.com">sales@cwdigitalsg.com</a></div>
+          </div>
+        </div>
+        <div class="right">
+          <h1>Invoice</h1>
+          <div class="meta">
+            <div>Invoice number <b>CWD-0120250401</b></div>
+            <div>Date of issue <b class="issue">01 April 2025</b></div>
+            <div>Date due <b class="due"></b></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="address">
+          <div class="section-title">Bill to</div>
+          <p>Dex-Lab</p>
+          <p>60 Macpherson Road #05-08</p>
+          <p>Siemens Centre Block 1</p>
+          <p>Singapore 348615</p>
+          <p><a href="mailto:finance@nova-hub.com">finance@nova-hub.com</a></p>
+        </div>
+        <div></div>
+      </div>
+
+      <div class="due-line">SGD 16,000.00 due <span class="due-inline"></span></div>
+
+      <table class="items">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="num">Qty</th>
+            <th class="num">Unit price</th>
+            <th class="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Software Consultancy for the month of April 2025</td>
+            <td class="num">1</td>
+            <td class="num">16,000.00</td>
+            <td class="num">16,000.00</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="totals">
+        <tr>
+          <td>Subtotal</td>
+          <td>SGD 16,000.00</td>
+        </tr>
+        <tr>
+          <td>Tax (Inclusive)</td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>Total</td>
+          <td>SGD 16,000.00</td>
+        </tr>
+        <tr class="bold">
+          <td>Amount due</td>
+          <td>SGD 16,000.00</td>
+        </tr>
+      </table>
+      <div class="thanks">Thank you for your business.</div>
+    </section>
+
+    <!-- Salary Slip Template -->
+    <section class="salary-slip" id="salary-view">
+      <!-- Header Placeholder (Cloned via JS) -->
+      <div class="header-placeholder"></div>
+
+      <div class="dashed-line"></div>
+      <div class="salary-title" id="salary-month-title">Salary for the month of Dec 2022</div>
+      <div class="dashed-line"></div>
+
+      <div class="salary-info">
+        <div>
+          <div style="display:grid; grid-template-columns: 100px 1fr; gap:5px;">
+            <span>Staff No</span> <span>0001</span>
+            <span>Name</span> <span>Mardiana Mohd Taib</span>
+            <span>Department</span> <span>Administration</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          CPF Acc No. S8341895H
+        </div>
+      </div>
+
+      <div class="dashed-line"></div>
+
+      <div class="salary-note">
+        THE SALARY HAS BEEN ISSUED CASH TO YOU<br>
+        IF YOU DISAGREE WITH ANY OF THE FIGURES SHOWN BELOW YOU SHOULD REPORT<br>
+        THE MATTER TO THE OFFICE IMMEDIATELY.
+      </div>
+
+      <div class="dashed-line"></div>
+
+      <table class="salary-table">
+        <thead>
+          <tr>
+            <th>Mth Salary</th>
+            <th>Allowances/ Bonus</th>
+            <th>Gross Pay</th>
+            <th>Deduction</th>
+            <th>E'yee CPF</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>500.00</td>
+            <td>NA</td>
+            <td>500.00</td>
+            <td>0.00</td>
+            <td>85.00</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="dashed-line"></div>
+
+      <div class="totals" style="width:100%">
+        <div class="totals-row">
+          <span>Your Net Pay is</span>
+          <div style="width:200px; display:flex; justify-content:space-between;">
+            <span>:</span>
+            <span>500.00</span>
+          </div>
+        </div>
+        <div class="totals-row">
+          <span>E'yer, CPF portion</span>
+          <div style="width:200px; display:flex; justify-content:space-between;">
+            <span>:</span>
+            <span>85.00</span>
+          </div>
+        </div>
+      </div>
+      <div class="dashed-line"></div>
+    </section>
+
+    <!-- Custom Mode Section -->
+    <section class="invoice custom-mode" id="custom-view">
+      <div class="header">
+        <div class="brand-placeholder"></div>
+        <div class="right">
+          <h1>INVOICE</h1>
+          <div class="meta">
+            <div>Invoice number <input type="text" class="editable-field" id="custInvoiceNum"
+                style="width:150px; display:inline-block;" value="INV-001"></div>
+            <div>Date <input type="date" class="editable-field" id="custDate"
+                style="width:140px; display:inline-block;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="address" style="width:100%">
+          <div class="section-title">Bill to</div>
+          <textarea id="custBillTo" rows="4" style="width:100%; border:1px solid #ccc; font-family:inherit;">User Name
+Address Line 1
+Address Line 2</textarea>
+        </div>
+      </div>
+
+      <div class="no-print" style="margin-bottom:10px; text-align:right;">
+        <button id="addCallbackBtn">Add Row</button>
+        <button id="saveLocalBtn">Save to LocalStorage</button>
+        <button id="exportBtn">Export JSON</button>
+        <button id="clearLocalBtn">Reset</button>
+      </div>
+
+      <table class="items" id="customTable">
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="num" style="width:20mm">Duration</th>
+            <th class="num" style="width:20mm">Qty</th>
+            <th class="num" style="width:30mm">Unit Price</th>
+            <th class="num" style="width:30mm">Amount</th>
+            <th class="no-print" style="width:10mm"></th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Dynamic Rows -->
+        </tbody>
+      </table>
+
+      <table class="totals">
+        <tr class="bold">
+          <td>Total</td>
+          <td id="customTotalVal">SGD 0.00</td>
+        </tr>
+      </table>
+    </section>
+
+  </div>
+
+  <script>
+    // Configuration
+    // Configuration
+    const MONTHS = {
+      jan2026: '2026-01-01',
+      feb2026: '2026-02-01',
+      mar2026: '2026-03-01',
+      apr2026: '2026-04-01',
+      may2026: '2026-05-01',
+      jun2026: '2026-06-01',
+      jul2026: '2026-07-01',
+      aug2026: '2026-08-01',
+      sep2026: '2026-09-01',
+      oct2026: '2026-10-01',
+      nov2026: '2026-11-01',
+      dec2026: '2026-12-01'
+    };
+
+    // Ordered Keys for Ranges
+    const MONTH_KEYS = [
+      'jan2026', 'feb2026', 'mar2026', 'apr2026', 'may2026', 'jun2026',
+      'jul2026', 'aug2026', 'sep2026', 'oct2026', 'nov2026', 'dec2026'
+    ];
+
+    const els = {
+      modeSel: document.getElementById('modeSel'),
+      monthSel: document.getElementById('monthSel'),
+      monthSelTo: document.getElementById('monthSelTo'),
+      batchCheck: document.getElementById('batchCheck'),
+      toSpan: document.getElementById('toSpan'),
+      batchControls: document.getElementById('batchControls'),
+      batchContainer: document.getElementById('batchContainer'),
+      invoiceView: document.getElementById('april'),
+      salaryView: document.getElementById('salary-view'),
+      customView: document.getElementById('custom-view'),
+      printBtn: document.getElementById('printBtn'),
+      // Custom Mode Elements
+      custTableBody: document.querySelector('#customTable tbody'),
+      addCallbackBtn: document.getElementById('addCallbackBtn'),
+      saveLocalBtn: document.getElementById('saveLocalBtn'),
+      exportBtn: document.getElementById('exportBtn'),
+      clearLocalBtn: document.getElementById('clearLocalBtn'),
+      customTotalVal: document.getElementById('customTotalVal'),
+      custInvoiceNum: document.getElementById('custInvoiceNum'),
+      custDate: document.getElementById('custDate'),
+      custBillTo: document.getElementById('custBillTo')
+    };
+
+    // Init "To" Selector
+    els.monthSelTo.innerHTML = els.monthSel.innerHTML;
+
+    // Setup Header for Salary View (Clone from Invoice)
+    const sourceHeader = els.invoiceView.querySelector('.header');
+    if (sourceHeader) {
+      const brand = sourceHeader.querySelector('.brand').cloneNode(true);
+
+      // Use specific logo for Salary Slip
+      const img = brand.querySelector('img');
+      if (img) img.src = "webiers_logo.png";
+
+      // Update Company Name and Email for Salary Slip
+      const companyBold = brand.querySelector('.company .bold');
+      if (companyBold) companyBold.textContent = 'Webiers LLP';
+
+      const emailLink = brand.querySelector('.company a');
+      if (emailLink) {
+        emailLink.textContent = 'sales@webiers.com';
+        emailLink.href = 'mailto:sales@webiers.com';
+      }
+
+      const dest = els.salaryView.querySelector('.header-placeholder');
+      // Wrap in header class for spacing if needed
+      const wrapper = document.createElement('div');
+      wrapper.className = 'header';
+      wrapper.style.marginBottom = '10mm'; // Manual adjustment
+      wrapper.appendChild(brand);
+      dest.appendChild(wrapper);
+
+      // Setup Custom View Brand - use the same logo as Client Invoice
+      const custBrandDest = els.customView.querySelector('.brand-placeholder');
+      if (custBrandDest) {
+        const custBrand = sourceHeader.querySelector('.brand').cloneNode(true);
+        custBrandDest.appendChild(custBrand);
+      }
+    }
+
+    function formatDate(dateStr, addDays) {
+      const d = new Date(dateStr);
+      if (addDays) d.setDate(d.getDate() + addDays);
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' });
+    }
+
+    function fillSalaryData(container, dateObj) {
+      const micMonth = dateObj.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const salTitle = container.querySelector('.salary-title');
+      if (salTitle) salTitle.textContent = `Salary for the month of ${micMonth}`;
+    }
+
+    function updateView() {
+      const mode = els.modeSel.value;
+      const monthKey = els.monthSel.value;
+      const dateStr = MONTHS[monthKey];
+      const dateObj = new Date(dateStr);
+
+      // Handle Batch UI Visibility
+      if (mode === 'salary') {
+        els.batchControls.style.display = 'flex';
+        const isBatch = els.batchCheck.checked;
+        els.toSpan.style.display = isBatch ? 'inline' : 'none';
+      } else {
+        els.batchControls.style.display = 'none';
+      }
+
+      // Normal View State
+      els.batchContainer.style.display = 'none';
+
+      els.invoiceView.classList.remove('active');
+      els.salaryView.classList.remove('active');
+      els.customView.classList.remove('active');
+
+      if (mode === 'invoice') {
+        els.invoiceView.classList.add('active');
+        updateInvoiceData(dateStr, dateObj);
+      } else if (mode === 'salary') {
+        els.salaryView.classList.add('active');
+        fillSalaryData(els.salaryView, dateObj);
+      } else if (mode === 'custom') {
+        els.customView.classList.add('active');
+      }
+    }
+
+    function updateInvoiceData(dateStr, dateObj) {
+      const invRoot = els.invoiceView;
+      const invDateStr = dateObj.toISOString().slice(0, 10).replace(/-/g, '');
+      const formatDateInv = (d, add) => formatDate(d, add); // wrap existing
+
+      const metaDivs = invRoot.querySelectorAll('.meta div');
+      if (metaDivs[0]) metaDivs[0].innerHTML = `Invoice number <b>CWD-01${invDateStr}</b>`;
+      if (metaDivs[1]) metaDivs[1].innerHTML = `Date of issue <b class="issue">${formatDate(dateStr, 0)}</b>`;
+      if (metaDivs[2]) metaDivs[2].innerHTML = `Date due <b class="due">${formatDate(dateStr, 45)}</b>`;
+
+      const dueLine = invRoot.querySelector('.due-inline');
+      if (dueLine) dueLine.textContent = formatDate(dateStr, 45);
+
+      const descCell = invRoot.querySelector('table.items tbody tr td:first-child');
+      if (descCell) descCell.textContent = `Software Consultancy for the month of ${dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`;
+    }
+
+    function handlePrint() {
+      const mode = els.modeSel.value;
+      const isBatch = els.batchCheck.checked;
+
+      if (mode === 'salary' && isBatch) {
+        // Generate Batch
+        const startKey = els.monthSel.value;
+        const endKey = els.monthSelTo.value;
+        const startIdx = MONTH_KEYS.indexOf(startKey);
+        const endIdx = MONTH_KEYS.indexOf(endKey);
+
+        if (startIdx > endIdx) {
+          alert("Start month must be before End month");
+          return;
+        }
+
+        els.batchContainer.innerHTML = '';
+        els.batchContainer.style.display = 'block';
+        els.salaryView.classList.remove('active'); // Hide single view
+        els.invoiceView.classList.remove('active');
+
+        for (let i = startIdx; i <= endIdx; i++) {
+          const key = MONTH_KEYS[i];
+          const dateStr = MONTHS[key];
+          const dateObj = new Date(dateStr);
+
+          // Clone template
+          const clone = els.salaryView.cloneNode(true);
+          clone.removeAttribute('id');
+          clone.classList.add('active'); // Make visible
+          // Adjust header margin just in case
+          // Fill Data
+          fillSalaryData(clone, dateObj);
+          els.batchContainer.appendChild(clone);
+        }
+
+        window.print();
+
+        // Restore
+        setTimeout(() => {
+          els.batchContainer.innerHTML = '';
+          updateView();
+        }, 500);
+
+      } else {
+        window.print();
+      }
+    }
+
+    // Events
+    els.modeSel.addEventListener('change', updateView);
+    els.monthSel.addEventListener('change', updateView);
+    els.batchCheck.addEventListener('change', updateView);
+    els.printBtn.addEventListener('click', handlePrint);
+
+    // Custom Mode Logic
+    let customRowsData = [];
+
+    function initCustomMode() {
+      // Load from local storage
+      const savedData = localStorage.getItem('cw_custom_invoice');
+      if (savedData) {
+        try {
+          const data = JSON.parse(savedData);
+          els.custInvoiceNum.value = data.invoiceNum || 'INV-001';
+          els.custDate.value = data.date || '';
+          els.custBillTo.value = data.billTo || '';
+          customRowsData = data.rows || [];
+        } catch (e) { console.error(e); }
+      }
+
+      if (customRowsData.length === 0) {
+        addRow(); // Initial row
+      } else {
+        renderRows();
+      }
+
+      els.addCallbackBtn.addEventListener('click', () => { addRow(); });
+      els.saveLocalBtn.addEventListener('click', saveToLocal);
+      els.exportBtn.addEventListener('click', exportData);
+      els.clearLocalBtn.addEventListener('click', clearLocal);
+
+      // Auto-save on meta change
+      els.custInvoiceNum.addEventListener('change', saveToLocal);
+      els.custDate.addEventListener('change', saveToLocal);
+      els.custBillTo.addEventListener('change', saveToLocal);
+    }
+
+    function addRow(data = { desc: '', duration: '', qty: 1, price: 0 }) {
+      customRowsData.push(data);
+      renderRows();
+      saveToLocal();
+    }
+
+    function deleteRow(index) {
+      customRowsData.splice(index, 1);
+      renderRows();
+      saveToLocal();
+    }
+
+    function renderRows() {
+      els.custTableBody.innerHTML = '';
+      let total = 0;
+
+      customRowsData.forEach((row, idx) => {
+        const tr = document.createElement('tr');
+
+        const amount = (parseFloat(row.qty) || 0) * (parseFloat(row.price) || 0);
+        total += amount;
+
+        tr.innerHTML = `
+          <td><textarea class="editable-field row-desc" data-idx="${idx}" rows="2">${row.desc}</textarea></td>
+          <td class="num"><input type="text" class="editable-field row-duration" data-idx="${idx}" value="${row.duration || ''}"></td>
+          <td class="num"><input type="number" class="editable-field row-qty" data-idx="${idx}" value="${row.qty}"></td>
+          <td class="num"><input type="number" class="editable-field row-price" data-idx="${idx}" value="${row.price}"></td>
+          <td class="num">${amount.toFixed(2)}</td>
+          <td class="no-print"><button class="del-btn" onclick="deleteRow(${idx})">X</button></td>
+        `;
+
+        els.custTableBody.appendChild(tr);
+      });
+
+      els.customTotalVal.textContent = 'SGD ' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+      // Auto-resize function for textareas
+      function autoResize(textarea) {
+        textarea.style.height = 'auto';
+        textarea.style.height = textarea.scrollHeight + 'px';
+      }
+
+      // Re-attach listeners for both inputs and textareas
+      const inputs = els.custTableBody.querySelectorAll('input, textarea');
+      inputs.forEach(inp => {
+        // Auto-resize textareas on load
+        if (inp.tagName === 'TEXTAREA') {
+          autoResize(inp);
+        }
+
+        inp.addEventListener('input', (e) => {
+          const idx = e.target.dataset.idx;
+          if (e.target.classList.contains('row-desc')) {
+            customRowsData[idx].desc = e.target.value;
+            // Auto-resize textarea as user types
+            if (e.target.tagName === 'TEXTAREA') {
+              autoResize(e.target);
+            }
+          }
+          if (e.target.classList.contains('row-duration')) customRowsData[idx].duration = e.target.value;
+          if (e.target.classList.contains('row-qty')) customRowsData[idx].qty = e.target.value;
+          if (e.target.classList.contains('row-price')) customRowsData[idx].price = e.target.value;
+          // Re-render only amounts to avoid focus loss? For simplicity, we might just recalc total here or debounce re-render.
+          // For now, let's just update the specific row amount and total dynamically without full re-render implementation for smoothness, 
+          // OR just re-render on 'change' instead of 'input'.
+          // Let's do a simple calc update securely.
+          const rowVal = (parseFloat(customRowsData[idx].qty) || 0) * (parseFloat(customRowsData[idx].price) || 0);
+          e.target.closest('tr').children[4].textContent = rowVal.toFixed(2);
+          updateTotal();
+          // We persist on change/blur usually, but let's do it here
+        });
+        inp.addEventListener('change', saveToLocal);
+      });
+    }
+
+    function updateTotal() {
+      let total = 0;
+      customRowsData.forEach(row => {
+        total += (parseFloat(row.qty) || 0) * (parseFloat(row.price) || 0);
+      });
+      els.customTotalVal.textContent = 'SGD ' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function saveToLocal() {
+      const data = {
+        invoiceNum: els.custInvoiceNum.value,
+        date: els.custDate.value,
+        billTo: els.custBillTo.value,
+        rows: customRowsData
+      };
+      localStorage.setItem('cw_custom_invoice', JSON.stringify(data));
+    }
+
+    function exportData() {
+      const data = {
+        invoiceNum: els.custInvoiceNum.value,
+        date: els.custDate.value,
+        billTo: els.custBillTo.value,
+        rows: customRowsData
+      };
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data));
+      const downloadAnchorNode = document.createElement('a');
+      downloadAnchorNode.setAttribute("href", dataStr);
+      downloadAnchorNode.setAttribute("download", "invoice_data.json");
+      document.body.appendChild(downloadAnchorNode); // required for firefox
+      downloadAnchorNode.click();
+      downloadAnchorNode.remove();
+    }
+
+    function clearLocal() {
+      if (confirm('Clear all custom data?')) {
+        localStorage.removeItem('cw_custom_invoice');
+        els.custInvoiceNum.value = 'INV-001';
+        els.custDate.value = '';
+        els.custBillTo.value = '';
+        customRowsData = [];
+        addRow();
+      }
+    }
+
+    // Expose deleteRow globally so onclick works
+    window.deleteRow = deleteRow;
+
+    // Init Logic
+    initCustomMode();
+    updateView();
+  </script>
+</body>
+
+</html>
