@@ -1,4 +1,4 @@
-<aside class="w-64 bg-base-100 shadow-lg flex flex-col h-full border-r border-base-300">
+<aside class="w-64 min-w-64 bg-base-100 shadow-lg flex flex-col h-full border-r border-base-300">
   <!-- Logo / Brand -->
   <div class="p-4 border-b border-base-300 flex items-center gap-3">
     <div class="avatar placeholder">
@@ -19,6 +19,7 @@
 
       <li>
         <a routerLink="/dashboard" routerLinkActive="active"
+           (click)="navClick.emit()"
            class="flex items-center gap-3 rounded-lg">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -32,6 +33,7 @@
 
       <li>
         <a routerLink="/companies" routerLinkActive="active"
+           (click)="navClick.emit()"
            class="flex items-center gap-3 rounded-lg">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -45,6 +47,7 @@
 
       <li>
         <a routerLink="/invoices" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}"
+           (click)="navClick.emit()"
            class="flex items-center gap-3 rounded-lg">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

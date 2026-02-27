@@ -1,13 +1,13 @@
-<div class="p-4 max-w-7xl mx-auto">
+<div class="p-4 sm:p-6 max-w-7xl mx-auto">
   <!-- Header -->
-  <div class="flex flex-wrap justify-between items-center gap-3 mb-6">
+  <div class="flex flex-col sm:flex-row flex-wrap justify-between items-stretch sm:items-center gap-3 mb-6">
     <div>
-      <h2 class="text-2xl font-bold">{{ isEdit ? 'Edit Invoice' : 'New Invoice' }}</h2>
+      <h2 class="text-xl sm:text-2xl font-bold">{{ isEdit ? 'Edit Invoice' : 'New Invoice' }}</h2>
       <p class="text-base-content/60 text-sm mt-0.5">
         {{ isEdit ? invoice.invoice_number : 'Create a new monthly invoice' }}
       </p>
     </div>
-    <div class="flex gap-2 flex-wrap">
+    <div class="flex gap-2 flex-wrap justify-end">
       <div class="tabs tabs-boxed bg-base-200">
         <button class="tab" [class.tab-active]="activeTab === 'edit'" (click)="activeTab = 'edit'">Edit</button>
         <button class="tab" [class.tab-active]="activeTab === 'preview'" (click)="activeTab = 'preview'">Preview</button>
@@ -166,20 +166,20 @@
 
           <div class="space-y-2" *ngIf="invoice.monthly_variables.length > 0">
             <div *ngFor="let v of invoice.monthly_variables; let i = index"
-              class="grid grid-cols-12 gap-2 items-center bg-base-200 rounded-lg p-2">
-              <div class="col-span-3">
+              class="grid grid-cols-1 sm:grid-cols-12 gap-2 items-end bg-base-200 rounded-lg p-2">
+              <div class="sm:col-span-3">
                 <label class="label py-0"><span class="label-text text-xs text-base-content/60">Key</span></label>
                 <input type="text" [(ngModel)]="v.key" class="input input-bordered input-xs w-full font-mono" placeholder="MY_VAR" />
               </div>
-              <div class="col-span-4">
+              <div class="sm:col-span-4">
                 <label class="label py-0"><span class="label-text text-xs text-base-content/60">Label</span></label>
                 <input type="text" [(ngModel)]="v.label" class="input input-bordered input-xs w-full" placeholder="Description" />
               </div>
-              <div class="col-span-4">
+              <div class="sm:col-span-4">
                 <label class="label py-0"><span class="label-text text-xs text-base-content/60">Value (this month)</span></label>
                 <input type="text" [(ngModel)]="v.value" class="input input-bordered input-xs w-full" placeholder="15 Jan - 15 Feb 2026" />
               </div>
-              <div class="col-span-1 flex items-end pb-0.5">
+              <div class="sm:col-span-1 flex items-end pb-0.5">
                 <button class="btn btn-ghost btn-xs text-error" (click)="removeVariable(i)">✕</button>
               </div>
             </div>
@@ -212,19 +212,19 @@
                   <textarea [(ngModel)]="item.description" rows="3" class="textarea textarea-bordered textarea-sm w-full text-sm"
                     placeholder="Service description. Use {VAR_KEY} for monthly variables."></textarea>
                 </div>
-                <div class="col-span-4">
+                <div class="col-span-6 sm:col-span-4">
                   <label class="label py-0.5"><span class="label-text text-xs font-medium">Duration</span></label>
                   <input type="text" [(ngModel)]="item.duration" class="input input-bordered input-xs w-full" placeholder="1 Month" />
                 </div>
-                <div class="col-span-2">
+                <div class="col-span-3 sm:col-span-2">
                   <label class="label py-0.5"><span class="label-text text-xs font-medium">Qty</span></label>
                   <input type="number" [(ngModel)]="item.qty" (ngModelChange)="onLineChange(item)" min="0" class="input input-bordered input-xs w-full" />
                 </div>
-                <div class="col-span-3">
+                <div class="col-span-3 sm:col-span-3">
                   <label class="label py-0.5"><span class="label-text text-xs font-medium">Unit Price</span></label>
                   <input type="number" [(ngModel)]="item.unit_price" (ngModelChange)="onLineChange(item)" min="0" class="input input-bordered input-xs w-full" />
                 </div>
-                <div class="col-span-3">
+                <div class="col-span-12 sm:col-span-3">
                   <label class="label py-0.5"><span class="label-text text-xs font-medium">Amount</span></label>
                   <input type="number" [value]="item.qty * item.unit_price" readonly class="input input-bordered input-xs w-full bg-base-200 font-semibold" />
                 </div>

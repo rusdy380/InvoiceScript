@@ -1,12 +1,12 @@
-<div class="p-6 max-w-7xl mx-auto">
+<div class="p-4 sm:p-6 max-w-7xl mx-auto">
   <!-- Header -->
-  <div class="mb-8">
-    <h2 class="text-3xl font-bold text-base-content">Dashboard</h2>
+  <div class="mb-6 sm:mb-8">
+    <h2 class="text-2xl sm:text-3xl font-bold text-base-content">Dashboard</h2>
     <p class="text-base-content/60 mt-1">Welcome to InvoiceScript — your invoice management system</p>
   </div>
 
   <!-- Stats -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 mb-6 sm:mb-8">
     <div class="stat bg-base-100 rounded-box shadow">
       <div class="stat-figure text-primary">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -42,7 +42,7 @@
   </div>
 
   <!-- Quick Actions -->
-  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 mb-6 sm:mb-8">
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
         <h3 class="card-title text-lg">Quick Actions</h3>
@@ -92,8 +92,8 @@
       <div *ngIf="recentInvoices.length === 0" class="text-base-content/50 text-sm">
         No invoices yet. <a routerLink="/invoices" class="link link-primary">Create your first invoice</a>
       </div>
-      <div class="overflow-x-auto" *ngIf="recentInvoices.length > 0">
-        <table class="table table-sm">
+      <div class="overflow-x-auto -mx-4 sm:mx-0" *ngIf="recentInvoices.length > 0">
+        <table class="table table-sm min-w-[500px]">
           <thead>
             <tr>
               <th>Invoice #</th>
