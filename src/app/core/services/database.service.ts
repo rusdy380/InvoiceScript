@@ -321,4 +321,82 @@ export class DatabaseService {
     const seq = String(count + 1).padStart(3, '0');
     return `INV-${year}${String(month).padStart(2, '0')}-${seq}`;
   }
+
+  // ─── Export / Import / Delete (JSON) ─────────────────────────────────────────
+
+  /** Export entire database as JSON. Efficient, human-readable format. */
+  exportDbJson(): string {
+    this.ensureReady();
+    const companies = this.getCompanies();
+    const templates = this.getTemplates();
+    const invoices = this.getInvoices();
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      companies,
+      invoice_templates: templates,
+      invoices,
+    };
+    return JSON.stringify(payload, null, 2);
+  }
+
+  /** Import database from JSON. Replaces existing data. */
+  importDbJson(json: string): void {
+    this.ensureReady();
+    const data = JSON.parse(json);
+    if (!data.companies || !Array.isArray(data.companies)) {
+      throw new Error('Invalid export: missing companies array');
+    }
+    const templates = Array.isArray(data.invoice_templates) ? data.invoice_templates : [];
+    const invoices = Array.isArray(data.invoices) ? data.invoices : [];
+
+    const companyIdMap = new Map<number, number>();
+
+    this.db.run('DELETE FROM invoices');
+    this.db.run('DELETE FROM invoice_templates');
+    this.db.run('DELETE FROM companies');
+
+    for (const c of data.companies) {
+      const oldId = c.id;
+      this.db.run(`
+        INSERT INTO companies (name, registration_number, address, email, phone, bank_name, bank_account, bank_swift, payment_terms, logo_base64)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [c.name, c.registration_number ?? '', c.address ?? '', c.email ?? '', c.phone ?? '',
+        c.bank_name ?? '', c.bank_account ?? '', c.bank_swift ?? '', c.payment_terms ?? 30, c.logo_base64 ?? null]);
+      const res = this.db.exec('SELECT last_insert_rowid() as id');
+      const newId = res[0].values[0][0] as number;
+      if (oldId != null) companyIdMap.set(oldId, newId);
+    }
+
+    for (const t of templates) {
+      const newCompanyId = companyIdMap.get(t.company_id) ?? t.company_id;
+      this.db.run(`
+        INSERT INTO invoice_templates (company_id, name, bill_to_name, bill_to_address, bill_to_email, notes, line_items, monthly_variables, payment_terms, tax_rate)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [newCompanyId, t.name, t.bill_to_name ?? '', t.bill_to_address ?? '', t.bill_to_email ?? null, t.notes ?? null,
+        JSON.stringify(t.line_items ?? []), JSON.stringify(t.monthly_variables ?? []), t.payment_terms ?? 30, t.tax_rate ?? 0]);
+    }
+
+    for (const inv of invoices) {
+      const newCompanyId = companyIdMap.get(inv.company_id) ?? inv.company_id;
+      this.db.run(`
+        INSERT INTO invoices (company_id, invoice_number, issue_date, due_date, bill_to_name, bill_to_address, bill_to_email, month, year, notes, line_items, monthly_variables, subtotal, tax_rate, tax_amount, total)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [newCompanyId, inv.invoice_number, inv.issue_date, inv.due_date,
+        inv.bill_to_name ?? '', inv.bill_to_address ?? '', inv.bill_to_email ?? null,
+        inv.month, inv.year, inv.notes ?? null,
+        JSON.stringify(inv.line_items ?? []), JSON.stringify(inv.monthly_variables ?? []),
+        inv.subtotal ?? 0, inv.tax_rate ?? 0, inv.tax_amount ?? 0, inv.total ?? 0]);
+    }
+
+    this.persist();
+  }
+
+  /** Delete database and start fresh. Page reload required to reflect changes. */
+  deleteDb(): void {
+    localStorage.removeItem('invoiceapp_db');
+    this.db = null;
+    this.ready = false;
+    this.initPromise = null;
+  }
 }

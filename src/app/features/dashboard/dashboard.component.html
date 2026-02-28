@@ -68,6 +68,34 @@
 
     <div class="card bg-base-100 shadow-sm border border-base-300">
       <div class="card-body">
+        <h3 class="card-title text-lg">Data Management</h3>
+        <p class="text-sm text-base-content/60">Export, import, or reset your database (JSON format)</p>
+        <div class="flex flex-wrap gap-2 mt-2">
+          <button class="btn btn-outline btn-sm" (click)="exportDb()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export
+          </button>
+          <label class="btn btn-outline btn-sm cursor-pointer">
+            <input type="file" accept=".json,application/json" class="hidden" (change)="importDb($event)" />
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            Import
+          </label>
+          <button class="btn btn-outline btn-sm btn-error" (click)="deleteDb()">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete DB
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card bg-base-100 shadow-sm border border-base-300">
+      <div class="card-body">
         <h3 class="card-title text-lg">Companies</h3>
         <div *ngIf="companies.length === 0" class="text-base-content/50 text-sm mt-2">
           No companies yet. <a routerLink="/companies/new" class="link link-primary">Add one</a>

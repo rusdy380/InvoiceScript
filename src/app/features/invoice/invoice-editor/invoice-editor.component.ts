@@ -32,6 +32,7 @@ export class InvoiceEditorComponent implements OnInit {
   pdfGenerating = false;
   error = '';
   activeTab: 'edit' | 'preview' = 'edit';
+  pdfExportName = '';
 
   months: MonthOption[] = [
     {value:1,label:'January'},{value:2,label:'February'},{value:3,label:'March'},
@@ -289,7 +290,9 @@ export class InvoiceEditorComponent implements OnInit {
         }
       }
 
-      const filename = `${this.invoice.invoice_number}-${this.shortMonths[this.invoice.month-1]}${this.invoice.year}.pdf`;
+      const defaultName = `${this.invoice.invoice_number}-${this.shortMonths[this.invoice.month - 1]}${this.invoice.year}.pdf`;
+      const custom = this.pdfExportName.trim().replace(/[<>:"/\\|?*]/g, '');
+      const filename = custom ? (custom.endsWith('.pdf') ? custom : `${custom}.pdf`) : defaultName;
       pdf.save(filename);
     } finally {
       this.pdfGenerating = false;
