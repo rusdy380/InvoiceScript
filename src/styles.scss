@@ -9,10 +9,22 @@
   }
 }
 
-/* Print styles for invoice PDF export */
+/* Print styles: show only the invoice, hide everything else */
 @media print {
-  .no-print {
-    display: none !important;
+  body * {
+    visibility: hidden;
+  }
+  .invoice-page,
+  .invoice-page * {
+    visibility: visible;
+  }
+  .invoice-page {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 210mm;
+    min-height: 297mm;
+    box-shadow: none;
   }
 }
 
@@ -29,7 +41,7 @@
 
 @page {
   size: A4;
-  margin: 22mm 18mm;
+  margin: 0;
 }
 
 /* Editable field highlight */

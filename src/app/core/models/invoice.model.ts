@@ -31,6 +31,7 @@ export interface Invoice {
   tax_rate?: number;
   tax_amount?: number;
   total?: number;
+  pdf_filename?: string;
   created_at?: string;
   updated_at?: string;
 }

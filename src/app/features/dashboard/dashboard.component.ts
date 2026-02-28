@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { DatabaseService } from '../../core/services/database.service';
 import { Company } from '../../core/models/company.model';
 import { Invoice } from '../../core/models/invoice.model';
@@ -19,7 +19,7 @@ export class DashboardComponent implements OnInit {
 
   months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-  constructor(private db: DatabaseService) {}
+  constructor(private db: DatabaseService, private router: Router) {}
 
   ngOnInit(): void {
     this.companies = this.db.getCompanies();
@@ -67,6 +67,21 @@ export class DashboardComponent implements OnInit {
     if (!confirm('Delete all data? This cannot be undone. The page will reload.')) return;
     this.db.deleteDb();
     window.location.reload();
+  }
+
+  cloneInvoice(id: number): void {
+    try {
+      const newId = this.db.cloneInvoice(id);
+      this.router.navigate(['/invoices', newId]);
+    } catch (e: any) {
+      alert('Clone failed: ' + e.message);
+    }
+  }
+
+  deleteInvoice(inv: Invoice): void {
+    if (!confirm(`Delete invoice ${inv.invoice_number}? This cannot be undone.`)) return;
+    this.db.deleteInvoice(inv.id!);
+    this.refreshData();
   }
 
   private refreshData(): void {

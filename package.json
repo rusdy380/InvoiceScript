@@ -17,17 +17,18 @@
     "@angular/forms": "^21.2.0",
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
-    "rxjs": "~7.8.0",
-    "tslib": "^2.3.0",
-    "sql.js": "^1.12.0",
-    "jspdf": "^2.5.2",
+    "daisyui": "^4.12.24",
     "html2canvas": "^1.4.1",
-    "daisyui": "^4.12.24"
+    "jspdf": "^2.5.2",
+    "rxjs": "~7.8.0",
+    "sql.js": "^1.12.0",
+    "tslib": "^2.3.0"
   },
   "devDependencies": {
     "@angular/build": "^21.2.0",
     "@angular/cli": "^21.2.0",
     "@angular/compiler-cli": "^21.2.0",
+    "@csstools/postcss-oklab-function": "^5.0.2",
     "@tailwindcss/typography": "^0.5.10",
     "autoprefixer": "^10.4.19",
     "jsdom": "^28.0.0",

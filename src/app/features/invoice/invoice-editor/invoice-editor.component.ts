@@ -1,4 +1,4 @@
-import { Component, OnInit, ViewChild, ElementRef } from '@angular/core';
+import { Component, OnInit, ViewChild, ElementRef, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
@@ -47,6 +47,7 @@ export class InvoiceEditorComponent implements OnInit {
     private db: DatabaseService,
     private route: ActivatedRoute,
     private router: Router,
+    private cdr: ChangeDetectorRef,
   ) {}
 
   ngOnInit(): void {
@@ -71,6 +72,7 @@ export class InvoiceEditorComponent implements OnInit {
       const existing = this.db.getInvoice(Number(id));
       if (existing) {
         this.invoice = existing;
+        this.pdfExportName = existing.pdf_filename ?? '';
         this.isEdit = true;
         this.invoiceId = existing.id!;
         const co = this.db.getCompany(existing.company_id);
@@ -232,6 +234,7 @@ export class InvoiceEditorComponent implements OnInit {
       return;
     }
     this.recalculate();
+    this.invoice.pdf_filename = this.pdfExportName.trim() || undefined;
     try {
       if (this.isEdit && this.invoiceId) {
         this.db.updateInvoice({ ...this.invoice, id: this.invoiceId });
@@ -246,24 +249,121 @@ export class InvoiceEditorComponent implements OnInit {
     }
   }
 
+  cloneInvoice(): void {
+    if (!this.invoiceId) return;
+    try {
+      const newId = this.db.cloneInvoice(this.invoiceId);
+      this.router.navigate(['/invoices', newId]);
+    } catch (e: any) {
+      this.error = e.message;
+    }
+  }
+
+  deleteInvoice(): void {
+    if (!this.invoiceId) return;
+    if (!confirm(`Delete invoice ${this.invoice.invoice_number}? This cannot be undone.`)) return;
+    this.db.deleteInvoice(this.invoiceId);
+    this.router.navigate(['/dashboard']);
+  }
+
+  printPdf(): void {
+    this.activeTab = 'preview';
+    this.cdr.detectChanges();
+    setTimeout(() => window.print(), 100);
+  }
+
+  /** Convert a single oklch() token to rgb() using the browser's native canvas color parser. */
+  private oklchTokenToRgb(token: string): string {
+    try {
+      const cv = document.createElement('canvas');
+      cv.width = cv.height = 1;
+      const ctx = cv.getContext('2d')!;
+      ctx.fillStyle = token;
+      ctx.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = ctx.getImageData(0, 0, 1, 1).data;
+      return a < 255 ? `rgba(${r},${g},${b},${(a / 255).toFixed(3)})` : `rgb(${r},${g},${b})`;
+    } catch {
+      return token;
+    }
+  }
+
+  /**
+   * Called inside html2canvas's onclone callback.
+   * Iterates every stylesheet in the CLONED document, disables any that contain
+   * oklch() (using media="not all"), and injects a patched replacement with all
+   * oklch tokens converted to rgb(). This runs before html2canvas's CSS parser,
+   * so it never encounters an oklch value.
+   */
+  private patchOklchInClone(clonedDoc: Document): void {
+    const patchedLines: string[] = [];
+
+    for (const sheet of Array.from(clonedDoc.styleSheets)) {
+      let fullText = '';
+      try {
+        fullText = Array.from(sheet.cssRules).map(r => r.cssText).join('\n');
+      } catch { continue; }
+
+      if (!fullText.includes('oklch')) continue;
+
+      // Disable this stylesheet in the clone so html2canvas never parses it
+      (sheet.ownerNode as HTMLElement | null)?.setAttribute('media', 'not all');
+
+      // Collect patched version (oklch → rgb)
+      patchedLines.push(fullText.replace(/oklch\([^)]*\)/g, m => this.oklchTokenToRgb(m)));
+    }
+
+    if (patchedLines.length === 0) return;
+
+    const style = clonedDoc.createElement('style');
+    style.id = 'oklch-pdf-patch';
+    style.textContent = patchedLines.join('\n');
+    clonedDoc.head.appendChild(style);
+  }
+
   async exportPdf(): Promise<void> {
     this.pdfGenerating = true;
+    this.error = '';
     this.activeTab = 'preview';
-    await new Promise(r => setTimeout(r, 200));
+    this.cdr.detectChanges();
+    await new Promise(r => setTimeout(r, 400));
+
+    const el = this.invoicePreviewRef?.nativeElement;
+    if (!el) {
+      this.pdfGenerating = false;
+      this.error = 'Preview not ready. Please try again.';
+      this.cdr.detectChanges();
+      return;
+    }
+
+    const PDF_TIMEOUT_MS = 15000;
 
     try {
-      const html2canvas = (await import('html2canvas')).default;
-      const jsPDF = (await import('jspdf')).default;
+      const [html2canvas, jsPDFModule] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ]);
+      const html2canvasFn = html2canvas.default;
+      const jsPDF = jsPDFModule.default;
 
-      const el = this.invoicePreviewRef?.nativeElement;
-      if (!el) { this.pdfGenerating = false; return; }
-
-      const canvas = await html2canvas(el, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      });
+      const canvas = await Promise.race([
+        html2canvasFn(el, {
+          scale: 1.5,
+          useCORS: true,
+          imageTimeout: 8000,
+          backgroundColor: '#ffffff',
+          logging: false,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: el.scrollWidth,
+          windowHeight: el.scrollHeight,
+          onclone: (clonedDoc: Document) => {
+            this.patchOklchInClone(clonedDoc);
+          },
+        }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('PDF generation timed out after 15 seconds')), PDF_TIMEOUT_MS)
+        ),
+      ]);
 
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
@@ -291,11 +391,15 @@ export class InvoiceEditorComponent implements OnInit {
       }
 
       const defaultName = `${this.invoice.invoice_number}-${this.shortMonths[this.invoice.month - 1]}${this.invoice.year}.pdf`;
-      const custom = this.pdfExportName.trim().replace(/[<>:"/\\|?*]/g, '');
+      const custom = (this.pdfExportName || this.invoice.pdf_filename || '').trim().replace(/[<>:"/\\|?*]/g, '');
       const filename = custom ? (custom.endsWith('.pdf') ? custom : `${custom}.pdf`) : defaultName;
       pdf.save(filename);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      this.error = `PDF export failed: ${msg}. Try using Print → Save as PDF instead.`;
     } finally {
       this.pdfGenerating = false;
+      this.cdr.detectChanges();
     }
   }
 

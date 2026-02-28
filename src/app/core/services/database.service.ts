@@ -29,6 +29,7 @@ export class DatabaseService {
         this.createSchema();
         this.seedDemoData();
       }
+      this.migrateSchema();
 
       this.ready = true;
     })();
@@ -92,6 +93,7 @@ export class DatabaseService {
         tax_rate REAL DEFAULT 0,
         tax_amount REAL DEFAULT 0,
         total REAL DEFAULT 0,
+        pdf_filename TEXT,
         created_at TEXT DEFAULT (datetime('now')),
         updated_at TEXT DEFAULT (datetime('now')),
         FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE
@@ -101,13 +103,31 @@ export class DatabaseService {
     this.persist();
   }
 
+  private migrateSchema(): void {
+    try {
+      const res = this.db.exec('PRAGMA table_info(invoices)');
+      const columns = (res[0]?.values ?? []).map((r: any[]) => r[1]);
+      if (!columns.includes('pdf_filename')) {
+        this.db.run('ALTER TABLE invoices ADD COLUMN pdf_filename TEXT');
+        this.persist();
+      }
+    } catch (_) { /* ignore */ }
+
+    // Migration: add default logos for CWD and Webiers if missing
+    try {
+      this.db.run(`UPDATE companies SET logo_base64 = '/company-logo/webiers_logo.png' WHERE name = 'Webiers LLP' AND (logo_base64 IS NULL OR logo_base64 = '')`);
+      this.db.run(`UPDATE companies SET logo_base64 = '/company-logo/CWD.png' WHERE name = 'CWD Pte Ltd' AND (logo_base64 IS NULL OR logo_base64 = '')`);
+      this.persist();
+    } catch (_) { /* ignore */ }
+  }
+
   private seedDemoData(): void {
-    // Seed example companies
+    // Seed example companies (Webiers default, then CWD)
     this.db.run(`
-      INSERT INTO companies (name, registration_number, address, email, phone, bank_name, bank_account, bank_swift, payment_terms)
+      INSERT INTO companies (name, registration_number, address, email, phone, bank_name, bank_account, bank_swift, payment_terms, logo_base64)
       VALUES
-        ('CWD Pte Ltd', '202012345A', '22 Sin Ming Lane #06-76, Midview City, Singapore 573969', 'sales@cwdigitalsg.com', '+65 9123 4567', 'DBS Bank Ltd', '0720012345', 'DBSSSGSG', 30),
-        ('Webiers LLP', '202098765B', '1 Raffles Place, #20-61 One Raffles Place, Singapore 048616', 'sales@webiers.com', '+65 8765 4321', 'OCBC Bank', '5183456789', 'OCBCSGSG', 45);
+        ('Webiers LLP', '202098765B', '1 Raffles Place, #20-61 One Raffles Place, Singapore 048616', 'sales@webiers.com', '+65 8765 4321', 'OCBC Bank', '5183456789', 'OCBCSGSG', 45, '/company-logo/webiers_logo.png'),
+        ('CWD Pte Ltd', '202012345A', '22 Sin Ming Lane #06-76, Midview City, Singapore 573969', 'sales@cwdigitalsg.com', '+65 9123 4567', 'DBS Bank Ltd', '0720012345', 'DBSSSGSG', 30, '/company-logo/CWD.png');
     `);
 
     // Seed example template for company 1
@@ -121,7 +141,7 @@ export class DatabaseService {
 
     this.db.run(`
       INSERT INTO invoice_templates (company_id, name, bill_to_name, bill_to_address, bill_to_email, line_items, monthly_variables, payment_terms, tax_rate)
-      VALUES (1, 'Standard Manpower Invoice', 'Dex-Lab', '60 Macpherson Road #05-08\nSingapore 360060', 'accounts@dexlab.com.sg', '${lineItems.replace(/'/g, "''")}', '${monthlyVars.replace(/'/g, "''")}', 30, 0);
+      VALUES (2, 'Standard Manpower Invoice', 'Dex-Lab', '60 Macpherson Road #05-08\nSingapore 360060', 'accounts@dexlab.com.sg', '${lineItems.replace(/'/g, "''")}', '${monthlyVars.replace(/'/g, "''")}', 30, 0);
     `);
 
     this.persist();
@@ -260,13 +280,14 @@ export class DatabaseService {
   insertInvoice(inv: Invoice): number {
     this.ensureReady();
     this.db.run(`
-      INSERT INTO invoices (company_id, invoice_number, issue_date, due_date, bill_to_name, bill_to_address, bill_to_email, month, year, notes, line_items, monthly_variables, subtotal, tax_rate, tax_amount, total)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO invoices (company_id, invoice_number, issue_date, due_date, bill_to_name, bill_to_address, bill_to_email, month, year, notes, line_items, monthly_variables, subtotal, tax_rate, tax_amount, total, pdf_filename)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [inv.company_id, inv.invoice_number, inv.issue_date, inv.due_date,
         inv.bill_to_name, inv.bill_to_address, inv.bill_to_email ?? null,
         inv.month, inv.year, inv.notes ?? null,
         JSON.stringify(inv.line_items), JSON.stringify(inv.monthly_variables),
-        inv.subtotal ?? 0, inv.tax_rate ?? 0, inv.tax_amount ?? 0, inv.total ?? 0]);
+        inv.subtotal ?? 0, inv.tax_rate ?? 0, inv.tax_amount ?? 0, inv.total ?? 0,
+        inv.pdf_filename ?? null]);
     this.persist();
     const res = this.db.exec('SELECT last_insert_rowid() as id');
     return res[0].values[0][0] as number;
@@ -279,14 +300,15 @@ export class DatabaseService {
         company_id = ?, invoice_number = ?, issue_date = ?, due_date = ?,
         bill_to_name = ?, bill_to_address = ?, bill_to_email = ?,
         month = ?, year = ?, notes = ?, line_items = ?, monthly_variables = ?,
-        subtotal = ?, tax_rate = ?, tax_amount = ?, total = ?,
+        subtotal = ?, tax_rate = ?, tax_amount = ?, total = ?, pdf_filename = ?,
         updated_at = datetime('now')
       WHERE id = ?
     `, [inv.company_id, inv.invoice_number, inv.issue_date, inv.due_date,
         inv.bill_to_name, inv.bill_to_address, inv.bill_to_email ?? null,
         inv.month, inv.year, inv.notes ?? null,
         JSON.stringify(inv.line_items), JSON.stringify(inv.monthly_variables),
-        inv.subtotal ?? 0, inv.tax_rate ?? 0, inv.tax_amount ?? 0, inv.total ?? 0, inv.id]);
+        inv.subtotal ?? 0, inv.tax_rate ?? 0, inv.tax_amount ?? 0, inv.total ?? 0,
+        inv.pdf_filename ?? null, inv.id]);
     this.persist();
   }
 
@@ -294,6 +316,149 @@ export class DatabaseService {
     this.ensureReady();
     this.db.run(`DELETE FROM invoices WHERE id = ?`, [id]);
     this.persist();
+  }
+
+  cloneInvoice(id: number): number {
+    const inv = this.getInvoice(id);
+    if (!inv) throw new Error('Invoice not found');
+
+    // Advance period by one month
+    let newMonth = inv.month + 1;
+    let newYear  = inv.year;
+    if (newMonth > 12) { newMonth = 1; newYear++; }
+
+    // Advance monthly variable values that look like date ranges / dates
+    const newMonthlyVars = inv.monthly_variables.map(v => ({
+      ...v,
+      value: this.advanceDateRangeByOneMonth(v.value),
+    }));
+
+    // New invoice number derived from the cloned invoice's own format
+    const newInvoiceNumber = this.deriveNextInvoiceNumber(inv.invoice_number, newYear, newMonth, inv.company_id);
+
+    // Build PDF filename: "INV-YYYYMM-NNN - <month range>"
+    const rangeVar = newMonthlyVars.find(v => this.looksLikeDateRange(v.value));
+    const pdfFilename = rangeVar
+      ? `${newInvoiceNumber} - ${rangeVar.value}`
+      : newInvoiceNumber;
+
+    const clone: Invoice = {
+      ...inv,
+      id: undefined,
+      created_at: undefined,
+      updated_at: undefined,
+      month: newMonth,
+      year: newYear,
+      invoice_number: newInvoiceNumber,
+      issue_date: this.advanceDateStringByOneMonth(inv.issue_date),
+      due_date:   this.advanceDateStringByOneMonth(inv.due_date),
+      monthly_variables: newMonthlyVars,
+      pdf_filename: pdfFilename,
+    };
+    return this.insertInvoice(clone);
+  }
+
+  /**
+   * Parse an invoice number for cloning. Supports two formats:
+   * 1. Date-based: PREFIX-YYYYMM-SEQ (e.g. INV-202601-003)
+   * 2. Simple sequential: PREFIX + digits (e.g. CWD-00564)
+   */
+  private parseInvoiceNumber(num: string): { kind: 'date'; prefix: string; separator: string; seqLen: number } | { kind: 'sequential'; prefix: string; seq: number; seqLen: number } | null {
+    // Date-based: has 6-digit YYYYMM block
+    const dateMatch = num.match(/^(.*?)(20\d{2}(?:0[1-9]|1[0-2]))(\D*)(\d+)$/);
+    if (dateMatch) {
+      return { kind: 'date', prefix: dateMatch[1], separator: dateMatch[3], seqLen: dateMatch[4].length };
+    }
+    // Simple sequential: prefix + trailing digits (e.g. CWD-00564)
+    const seqMatch = num.match(/^(.*?)(\d+)$/);
+    if (seqMatch && seqMatch[2].length >= 1) {
+      return { kind: 'sequential', prefix: seqMatch[1], seq: parseInt(seqMatch[2], 10), seqLen: seqMatch[2].length };
+    }
+    return null;
+  }
+
+  /**
+   * Build the next invoice number for a cloned invoice.
+   * Preserves the original format: date-based (INV-YYYYMM-NNN) or simple sequential (CWD-00564).
+   */
+  private deriveNextInvoiceNumber(original: string, newYear: number, newMonth: number, companyId: number): string {
+    const parsed = this.parseInvoiceNumber(original);
+    if (!parsed) return this.getNextInvoiceNumber(companyId, newYear, newMonth);
+
+    if (parsed.kind === 'date') {
+      const newYearMonth = `${newYear}${String(newMonth).padStart(2, '0')}`;
+      const res = this.db.exec(`SELECT COUNT(*) as cnt FROM invoices WHERE company_id = ${companyId} AND year = ${newYear} AND month = ${newMonth}`);
+      const count = (res[0]?.values[0][0] as number) ?? 0;
+      const newSeq = String(count + 1).padStart(parsed.seqLen, '0');
+      return `${parsed.prefix}${newYearMonth}${parsed.separator}${newSeq}`;
+    }
+
+    // Sequential: find max existing number with same prefix for this company, then use max+1
+    const all = this.getInvoices(companyId);
+    let maxSeq = parsed.seq;
+    for (const inv of all) {
+      const p = this.parseInvoiceNumber(inv.invoice_number);
+      if (p?.kind === 'sequential' && p.prefix === parsed.prefix && p.seq > maxSeq) {
+        maxSeq = p.seq;
+      }
+    }
+    const newSeq = String(maxSeq + 1).padStart(parsed.seqLen, '0');
+    return `${parsed.prefix}${newSeq}`;
+  }
+
+  /**
+   * Advance every date token of the form "DDth MMM YY[YY]" inside a string by
+   * one calendar month.  Handles cross-year rollovers (Dec → Jan).
+   * Examples:
+   *   "15th Jan 26 to 15th Feb 26"  →  "15th Feb 26 to 15th Mar 26"
+   *   "15th Dec 25 to 15th Jan 26"  →  "15th Jan 26 to 15th Feb 26"
+   */
+  private advanceDateRangeByOneMonth(value: string): string {
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const dateRe = /(\d{1,2})(st|nd|rd|th)\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{2,4})/gi;
+    return value.replace(dateRe, (_match, day, _sfx, mon, yr) => {
+      let mIdx = MONTHS.findIndex(m => m.toLowerCase() === mon.toLowerCase());
+      let year = parseInt(yr, 10);
+      if (year < 100) year += 2000;
+      mIdx++;
+      if (mIdx > 11) { mIdx = 0; year++; }
+      const yearStr = yr.length <= 2 ? String(year).slice(-2) : String(year);
+      return `${day}${this.ordinalSuffix(parseInt(day, 10))} ${MONTHS[mIdx]} ${yearStr}`;
+    });
+  }
+
+  /**
+   * Advance a date string of the form "DD MMM YYYY" or "DD MMM YY" by one month.
+   * Used for issue_date / due_date which the app formats without ordinal suffix.
+   */
+  private advanceDateStringByOneMonth(dateStr: string): string {
+    const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const m = dateStr.match(/^(\d{1,2})\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+(\d{2,4})$/i);
+    if (!m) return dateStr;
+    let mIdx = MONTHS.findIndex(mo => mo.toLowerCase() === m[2].toLowerCase());
+    let year = parseInt(m[3], 10);
+    if (year < 100) year += 2000;
+    mIdx++;
+    if (mIdx > 11) { mIdx = 0; year++; }
+    const daysInMonth = new Date(year, mIdx + 1, 0).getDate();
+    const day = String(Math.min(parseInt(m[1], 10), daysInMonth)).padStart(2, '0');
+    const yearStr = m[3].length <= 2 ? String(year).slice(-2) : String(year);
+    return `${day} ${MONTHS[mIdx]} ${yearStr}`;
+  }
+
+  private ordinalSuffix(n: number): string {
+    const v = n % 100;
+    if (v >= 11 && v <= 13) return 'th';
+    switch (n % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
+    }
+  }
+
+  private looksLikeDateRange(value: string): boolean {
+    return /\d{1,2}(st|nd|rd|th)?\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{2,4}/i.test(value);
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -380,13 +545,14 @@ export class DatabaseService {
     for (const inv of invoices) {
       const newCompanyId = companyIdMap.get(inv.company_id) ?? inv.company_id;
       this.db.run(`
-        INSERT INTO invoices (company_id, invoice_number, issue_date, due_date, bill_to_name, bill_to_address, bill_to_email, month, year, notes, line_items, monthly_variables, subtotal, tax_rate, tax_amount, total)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO invoices (company_id, invoice_number, issue_date, due_date, bill_to_name, bill_to_address, bill_to_email, month, year, notes, line_items, monthly_variables, subtotal, tax_rate, tax_amount, total, pdf_filename)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `, [newCompanyId, inv.invoice_number, inv.issue_date, inv.due_date,
         inv.bill_to_name ?? '', inv.bill_to_address ?? '', inv.bill_to_email ?? null,
         inv.month, inv.year, inv.notes ?? null,
         JSON.stringify(inv.line_items ?? []), JSON.stringify(inv.monthly_variables ?? []),
-        inv.subtotal ?? 0, inv.tax_rate ?? 0, inv.tax_amount ?? 0, inv.total ?? 0]);
+        inv.subtotal ?? 0, inv.tax_rate ?? 0, inv.tax_amount ?? 0, inv.total ?? 0,
+        inv.pdf_filename ?? null]);
     }
 
     this.persist();
